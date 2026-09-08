@@ -11,19 +11,23 @@ export async function POST(request) {
   const price = plan === "yearly" ? process.env.STRIPE_PRICE_YEARLY : process.env.STRIPE_PRICE_MONTHLY;
   if (!price) return NextResponse.json({ error: "Price not configured" }, { status: 500 });
 
-  const { data: sub } = await supabase.from("subscriptions").select("stripe_customer_id").eq("user_id", user.id).single();
+  try {
+    const { data: sub } = await supabase.from("subscriptions").select("stripe_customer_id").eq("user_id", user.id).single();
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: sub?.stripe_customer_id || undefined,
-    customer_email: sub?.stripe_customer_id ? undefined : user.email,
-    client_reference_id: user.id,
-    line_items: [{ price, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?checkout=success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?checkout=cancelled`,
-    subscription_data: { metadata: { supabase_user_id: user.id } },
-    metadata: { supabase_user_id: user.id },
-  });
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: sub?.stripe_customer_id || undefined,
+      customer_email: sub?.stripe_customer_id ? undefined : user.email,
+      client_reference_id: user.id,
+      line_items: [{ price, quantity: 1 }],
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?checkout=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?checkout=cancelled`,
+      subscription_data: { metadata: { supabase_user_id: user.id } },
+      metadata: { supabase_user_id: user.id },
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    return NextResponse.json({ error: err.message || "Unknown error creating checkout session" }, { status: 500 });
+  }
 }
