@@ -24,6 +24,7 @@ export async function POST(request) {
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?checkout=cancelled`,
       subscription_data: { metadata: { supabase_user_id: user.id } },
       metadata: { supabase_user_id: user.id },
+      managed_payments: { enabled: false },
     });
 
     return NextResponse.json({ url: session.url });
