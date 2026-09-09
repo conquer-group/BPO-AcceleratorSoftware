@@ -18,14 +18,17 @@ export async function POST(request) {
 
   async function upsertFromSubscription(subscription, userId) {
     const status = subscription.status; // active, trialing, past_due, canceled, ...
-    const plan = subscription.items.data[0]?.price?.id === process.env.STRIPE_PRICE_YEARLY ? "yearly" : "monthly";
+    const item = subscription.items.data[0];
+    const plan = item?.price?.id === process.env.STRIPE_PRICE_YEARLY ? "yearly" : "monthly";
+    // Newer Stripe API versions moved current_period_end from the subscription itself onto each item.
+    const periodEndSeconds = item?.current_period_end || subscription.current_period_end;
     await supabase.from("subscriptions").upsert({
       user_id: userId,
       stripe_customer_id: subscription.customer,
       stripe_subscription_id: subscription.id,
       status,
       plan,
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
       updated_at: new Date().toISOString(),
     });
   }
